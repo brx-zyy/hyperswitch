@@ -42,7 +42,7 @@ fn dns_reply(packet: &[u8], a_queries: &AtomicUsize) -> Vec<u8> {
     let name = labels.join(".");
     let qtype = u16::from_be_bytes([packet[cursor], packet[cursor + 1]]);
     let question_end = cursor + 4;
-    let answer_count = u16::from(qtype == 1 && name == "rebind.test");
+    let answer_count: u16 = if qtype == 1 && name == "rebind.test" { 1 } else { 0 };
 
     let mut response = Vec::with_capacity(question_end + 32);
     response.extend_from_slice(&packet[0..2]);
