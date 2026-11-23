@@ -21,7 +21,7 @@ jobs:
         with:
           workspaces: . -> target
       - name: Compile DNS rebinding test with v2
-        run: cargo test -p external_services --features v2 --test dns_rebinding --no-run
+        run: cargo test -p external_services --features 'v2 euclid/v2' --test dns_rebinding --no-run
       - name: Run DNS rebinding test with v2
         shell: bash
         run: |
