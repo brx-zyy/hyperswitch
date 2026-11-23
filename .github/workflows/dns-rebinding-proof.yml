@@ -51,4 +51,5 @@ jobs:
           cat /etc/resolv.conf
 
       - name: Run isolated DNS rebinding regression test
-        run: "$TEST_BIN" --nocapture
+        run: |
+          "$TEST_BIN" --nocapture
