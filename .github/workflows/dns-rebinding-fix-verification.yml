@@ -1,0 +1,70 @@
+name: Verify proposed DNS rebinding fix (upstream PR 15223)
+
+on:
+  push:
+    branches:
+      - security-test/dns-rebinding-proof
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-connection-time-dns-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout regression harness
+        uses: actions/checkout@v4
+
+      - name: Checkout upstream PR 15223
+        uses: actions/checkout@v4
+        with:
+          repository: juspay/hyperswitch
+          ref: refs/pull/15223/head
+          path: upstream
+          persist-credentials: false
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libssl-dev pkg-config libcap2-bin
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            upstream -> upstream/target
+
+      - name: Install the isolated regression test into the upstream PR checkout
+        run: |
+          cp crates/external_services/tests/dns_rebinding_fixed.rs \
+            upstream/crates/external_services/tests/dns_rebinding_fixed.rs
+
+      - name: Compile test against upstream PR 15223
+        working-directory: upstream
+        run: cargo test -p external_services --features v1 --test dns_rebinding_fixed --no-run
+
+      - name: Grant test binary permission to bind local DNS port
+        working-directory: upstream
+        run: |
+          TEST_BIN="$(find target -type f -executable -name 'dns_rebinding_fixed-*' | head -n 1)"
+          test -n "$TEST_BIN"
+          echo "TEST_BIN=$TEST_BIN" >> "$GITHUB_ENV"
+          sudo setcap cap_net_bind_service=+ep "$TEST_BIN"
+
+      - name: Run connection-time DNS rebinding regression and restore resolver
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo cp -L /etc/resolv.conf /tmp/resolv.conf.before-test
+          restore_resolver() {
+            sudo cp /tmp/resolv.conf.before-test /etc/resolv.conf || true
+          }
+          trap restore_resolver EXIT
+          sudo sh -c 'printf "nameserver 127.0.0.1\noptions timeout:1 attempts:1 ndots:1\n" > /etc/resolv.conf'
+          cat /etc/resolv.conf
+          "upstream/$TEST_BIN" --nocapture
