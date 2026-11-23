@@ -9,10 +9,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: dns-rebinding-proof-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   isolated-dns-rebinding:
     runs-on: ubuntu-latest
