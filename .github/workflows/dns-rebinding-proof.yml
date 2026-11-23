@@ -39,6 +39,9 @@ jobs:
       - name: Compile the targeted regression test
         run: cargo test -p external_services --features v1 --test dns_rebinding --no-run
 
+      - name: Confirm compiled test binary exists
+        run: find target/debug/deps -maxdepth 1 -type f -executable -name 'dns_rebinding-*' -print
+
       - name: Grant the test binary permission to bind local DNS port
         run: |
           TEST_BIN="$(find target/debug/deps -maxdepth 1 -type f -executable -name 'dns_rebinding-*' | head -n 1)"
