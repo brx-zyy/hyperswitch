@@ -11,6 +11,10 @@ permissions:
 
 jobs:
   dns-rebinding-integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: [v1, v2]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -24,18 +28,18 @@ jobs:
         with:
           workspaces: . -> target
       - name: Compile targeted integration test
-        run: cargo test -p external_services --features v1 --test dns_rebinding --no-run
+        run: cargo test -p external_services --features ${{ matrix.feature }} --test dns_rebinding --no-run
       - name: Run DNS rebinding integration test
         shell: bash
         run: |
           set -euo pipefail
-          TEST_BIN="$(find target -type f -executable -name 'dns_rebinding-*' | head -n 1)"
+          TEST_BIN="$(find target -type f -executable -name 'dns_rebinding-*' -printf '%T@ %p\\n' | sort -nr | head -n 1 | cut -d' ' -f2-)"
           test -n "$TEST_BIN"
           sudo setcap cap_net_bind_service=+ep "$TEST_BIN"
           sudo cp -L /etc/resolv.conf /tmp/resolv.conf.before-test
           restore_resolver() { sudo cp /tmp/resolv.conf.before-test /etc/resolv.conf || true; }
           trap restore_resolver EXIT
-          sudo sh -c 'printf "nameserver 127.0.0.1\noptions timeout:1 attempts:1 ndots:1\n" > /etc/resolv.conf'
+          sudo sh -c 'printf "nameserver 127.0.0.1\\noptions timeout:1 attempts:1 ndots:1\\n" > /etc/resolv.conf'
           "$TEST_BIN" --nocapture
       - name: Run external_services library tests excluding unrelated known failure
-        run: cargo test -p external_services --features v1 --lib -- --skip utils::tests::test_deserialize_hashset_inner_empty_string
+        run: cargo test -p external_services --features ${{ matrix.feature }} --lib -- --skip utils::tests::test_deserialize_hashset_inner_empty_string
