@@ -1,0 +1,43 @@
+name: Extended outbound security verification
+
+on:
+  push:
+    branches:
+      - security-test/dns-rebinding-proof
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  external-services-full-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+      - name: Run all external_services tests
+        run: cargo test -p external_services --features v1
+
+  router-compile-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+      - name: Compile router with v1 feature
+        run: cargo check -p router --features v1
