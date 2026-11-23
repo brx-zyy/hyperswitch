@@ -1,0 +1,54 @@
+name: DNS rebinding regression proof
+
+on:
+  push:
+    branches:
+      - security-test/dns-rebinding-proof
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dns-rebinding-proof-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-dns-rebinding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libssl-dev pkg-config libcap2-bin
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+
+      - name: Point resolver at the isolated test DNS server
+        run: |
+          sudo sh -c 'printf "nameserver 127.0.0.1\noptions timeout:1 attempts:1 ndots:1\n" > /etc/resolv.conf'
+          cat /etc/resolv.conf
+
+      - name: Compile the targeted regression test
+        run: cargo test -p external_services --features v1 --test dns_rebinding --no-run
+
+      - name: Run isolated DNS rebinding regression test
+        env:
+          CARGO_HOME: ${{ env.CARGO_HOME }}
+          RUSTUP_HOME: ${{ env.RUSTUP_HOME }}
+        run: |
+          # Port 53 is privileged. Run only this isolated local test as root;
+          # it uses no credentials and contacts no external destination.
+          sudo -E env "PATH=$PATH" "CARGO_HOME=$CARGO_HOME" "RUSTUP_HOME=$RUSTUP_HOME" \
+            cargo test -p external_services --features v1 --test dns_rebinding -- --nocapture
