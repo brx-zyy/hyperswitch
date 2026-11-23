@@ -36,11 +36,11 @@ jobs:
         run: cargo test -p external_services --features v1 --test dns_rebinding --no-run
 
       - name: Confirm compiled test binary exists
-        run: find target/debug/deps -maxdepth 1 -type f -executable -name 'dns_rebinding-*' -print
+        run: find target -type f -executable -name 'dns_rebinding-*' -print
 
       - name: Grant the test binary permission to bind local DNS port
         run: |
-          TEST_BIN="$(find target/debug/deps -maxdepth 1 -type f -executable -name 'dns_rebinding-*' | head -n 1)"
+          TEST_BIN="$(find target -type f -executable -name 'dns_rebinding-*' | head -n 1)"
           test -n "$TEST_BIN"
           echo "TEST_BIN=$TEST_BIN" >> "$GITHUB_ENV"
           sudo setcap cap_net_bind_service=+ep "$TEST_BIN"
