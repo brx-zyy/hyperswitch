@@ -45,11 +45,15 @@ jobs:
           echo "TEST_BIN=$TEST_BIN" >> "$GITHUB_ENV"
           sudo setcap cap_net_bind_service=+ep "$TEST_BIN"
 
-      - name: Point resolver at the isolated test DNS server
+      - name: Run isolated DNS rebinding regression test and restore resolver
+        shell: bash
         run: |
+          set -euo pipefail
+          sudo cp -L /etc/resolv.conf /tmp/resolv.conf.before-test
+          restore_resolver() {
+            sudo cp /tmp/resolv.conf.before-test /etc/resolv.conf || true
+          }
+          trap restore_resolver EXIT
           sudo sh -c 'printf "nameserver 127.0.0.1\noptions timeout:1 attempts:1 ndots:1\n" > /etc/resolv.conf'
           cat /etc/resolv.conf
-
-      - name: Run isolated DNS rebinding regression test
-        run: |
           "$TEST_BIN" --nocapture
