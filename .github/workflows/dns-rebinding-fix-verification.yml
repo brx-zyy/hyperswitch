@@ -37,10 +37,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            upstream -> upstream/target
+            upstream -> target
 
       - name: Install the isolated regression test into the upstream PR checkout
         run: |
+          mkdir -p upstream/crates/external_services/tests
           cp crates/external_services/tests/dns_rebinding_fixed.rs \
             upstream/crates/external_services/tests/dns_rebinding_fixed.rs
 
